@@ -138,4 +138,5 @@ UMass Dartmouth - High Performance Computing Project
 
 ## License
 
-Academic project - contact author for usage permissions.
+Academic project - contact author for usage.
+Licensed under the MIT License - see the LICENSE file for details.
