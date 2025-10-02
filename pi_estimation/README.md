@@ -78,7 +78,7 @@ sbatch job_3.sh  # Multiple iteration analysis
 - **Critical finding**: Error plateaus at ~10^(-6) beyond N=10^10 (numerical precision limit)
 - Thread count has minimal impact on error estimates
 
-![N vs Error - MCMC](./../data/N_vs_E_avg_mcmc.png)
+![N vs Error - MCMC](./../data/pi_estimation/N_vs_E_avg_mcmc.png)
 *Error convergence analysis showing plateau at ~10^-6 beyond N=10^10, indicating numerical precision limits*
 
 ### Performance Analysis
@@ -87,7 +87,7 @@ sbatch job_3.sh  # Multiple iteration analysis
 - Weak scaling: Maximum speedup ~30x regardless of problem size beyond optimal thread count
 - Algorithm is not computationally intensive enough for efficient scaling beyond 30 threads
 
-![Strong Scaling Test](./../data/strong_scaling_test.png)
+![Strong Scaling Test](./../data/pi_estimation/strong_scaling_test.png)
 *Strong scaling efficiency showing degradation beyond 30 threads, with large problem sizes maintaining better efficiency*
 
 ### Limitations Identified
