@@ -1,104 +1,141 @@
-# Markov Chain Monte Carlo Methods with Parallel Computing
+# Monte Carlo & MCMC π Estimation with OpenMP Parallelization
 
-Implementation and performance analysis of Monte Carlo and MCMC algorithms using OpenMP and MPI.
+*High Performance Scientific Computing Course Project - Fall 2023*
 
-## Projects
+A high-performance computing project implementing Markov Chain Monte Carlo (MCMC) method for π approximation with OpenMP parallelization, including comprehensive error analysis and scaling tests.
 
-### 1. [π Estimation](./pi_estimation/)
-Monte Carlo integration with OpenMP parallelization (Fall 2023 course project).
+## Overview
 
-### 2. Bayesian MCMC Inference
-Metropolis-Hastings sampler with parallel implementations for comparison.
+This project parallelizes the Monte Carlo π estimation algorithm using OpenMP and analyzes:
+- Error convergence (E ∝ N^(-1/2))
+- Strong scaling efficiency
+- Weak scaling performance
+- Thread count impact on accuracy and performance
 
----
+## Project Structure
 
-## Bayesian MCMC
-
-### Problem Statement
-Inferring coin bias from observed flips using Bayesian inference. Given 7 heads in 10 flips, estimate the posterior distribution of the bias parameter θ.
-
-- Prior: Beta(2,2)
-- Likelihood: Binomial(n=10, p=θ)
-- Analytical posterior: Beta(9,5)
-
-The analytical solution lets us validate the MCMC implementation.
-
-### Code Structure
 ```
-beta_binomial_mcmc.c           # Serial baseline
-beta_binomial_mcmc_parallel.c  # OpenMP version
-beta_binomial_mcmc_mpi.c       # MPI version
+project/
+├── mcmc.c                  # Serial MCMC implementation
+├── mcmc_parallel.c         # OpenMP parallel implementation
+├── mcmc_parallel_1.c       # Alternative parallel version (20 threads fixed)
+├── analysis_1.sh           # Thread scaling tests (70-100 threads)
+├── analysis_2.sh           # Serial baseline runs (N=10^1 to 10^12)
+├── problem_1.sh            # Single iteration test
+├── problem_2.sh            # Multiple iteration analysis (500 runs)
+├── job.sh                  # SLURM job script (110 cores, 120 min)
+├── job_2.sh                # SLURM job script (5 cores, 220 min)
+├── job_3.sh                # SLURM job script (120 cores, 300 min)
+└── Project.ipynb           # Analysis and visualization notebook
 ```
 
-### Compilation
+## Requirements
+
+- C compiler with OpenMP support (gcc recommended)
+- Python 3.x with numpy, matplotlib
+- SLURM (for HPC cluster submission)
+- GNU Parallel (for `problem_2.sh`)
+
+## Compilation
+
 ```bash
-gcc -o beta_binomial_mcmc beta_binomial_mcmc.c -lm
-gcc -fopenmp -o beta_binomial_mcmc_parallel beta_binomial_mcmc_parallel.c -lm
-mpicc -o beta_binomial_mcmc_mpi beta_binomial_mcmc_mpi.c -lm
+# Serial version
+gcc -o mcmc mcmc.c -lm
+
+# Parallel version
+gcc -fopenmp -o mcmc_parallel mcmc_parallel.c -lm
 ```
 
-### Usage
+## Usage
+
+### Single Run
 ```bash
-./beta_binomial_mcmc                          # Serial: 10M samples
-./beta_binomial_mcmc_parallel 4 10000         # OpenMP: 4 chains, 10k samples each
-ibrun -n 48 ./beta_binomial_mcmc_mpi 10000000 # MPI: 48 chains, 10M samples each
+./mcmc_parallel <N> <num_threads>
+# Example: ./mcmc_parallel 1000000 10
 ```
 
-### Results
+Output format: `num_threads N pi_estimate error_estimate time`
 
-**Posterior Recovery**
+### Batch Analysis
+```bash
+# Run scaling tests
+bash analysis_1.sh  # Thread scaling
+bash analysis_2.sh  # Problem size scaling
+bash problem_2.sh   # Multiple iterations for statistical analysis
+```
 
-![Posterior](./posterior_validation.png)
+### HPC Cluster Submission
+```bash
+sbatch job.sh    # Thread scaling analysis
+sbatch job_2.sh  # Serial baseline
+sbatch job_3.sh  # Multiple iteration analysis
+```
 
-The sampler recovers the Beta(9,5) analytical posterior, confirming correctness.
+## Key Findings
 
-**OpenMP vs MPI Performance**
+### Error Analysis
+- Both MCMC and standard Monte Carlo follow E ∝ N^(-1/2) convergence
+- **Critical finding**: Error plateaus at ~10^(-6) beyond N=10^10 (numerical precision limit)
+- Thread count has minimal impact on error estimates
 
-![Comparison](./openmp_vs_mpi.png)
+![N vs Error - MCMC](./../data/N_vs_E_avg_mcmc.png)
+*Error convergence analysis showing plateau at ~10^-6 beyond N=10^10, indicating numerical precision limits*
 
-OpenMP maintains ~0.82s across 1-48 cores. MPI stays around 1.77s from 1-288 processes.
+### Performance Analysis
+- **Optimal thread count**: 27 threads for this implementation
+- Strong scaling: Near-linear speedup up to ~10 threads, then degrades
+- Weak scaling: Maximum speedup ~30x regardless of problem size beyond optimal thread count
+- Algorithm is not computationally intensive enough for efficient scaling beyond 30 threads
 
-The chains are completely independent with no communication between them. This means:
-- OpenMP works well since threads share memory efficiently
-- MPI adds overhead (process initialization, barriers) that costs ~1 second
-- Since computation per chain is ~0.8s, the MPI overhead kills any benefit
+![Strong Scaling Test](./../data/strong_scaling_test.png)
+*Strong scaling efficiency showing degradation beyond 30 threads, with large problem sizes maintaining better efficiency*
 
-OpenMP is limited to single node (48 cores here). MPI would be necessary for larger systems, but this particular problem is too lightweight to benefit from distributed computing.
+### Limitations Identified
+1. π approximation is too simple for effective large-scale parallelization
+2. Random number generation becomes bottleneck
+3. Numerical precision limits accuracy beyond N=10^10
 
-**Convergence Check**
+## Visualization
 
-![Traces](./trace_plots.png)
+The Jupyter notebook (`Project.ipynb`) generates:
+- N vs Error plots (log-log)
+- Thread vs Error correlation
+- Strong scaling analysis
+- Weak scaling analysis
+- N vs Time comparisons
 
-Gelman-Rubin statistic: R̂ = 1.0003 (should be < 1.1)
+## Proposed Improvements
 
-Four independent chains all converge to the same distribution. Acceptance rate ~0.22, close to the theoretical optimum of 0.234 for 1D problems.
+1. **Random Number Generation**: Replace `rand_r()` with higher-quality PRNG
+2. **Algorithm Complexity**: Test with more computationally intensive integrals
+3. **Load Balancing**: Investigate dynamic scheduling strategies
+4. **Numerical Precision**: Use arbitrary precision libraries for N > 10^10
+5. **Memory Optimization**: Reduce overhead for better cache utilization
 
-### Performance Data
+## Technical Details
 
-| Method | Cores | Time (10M samples) |
-|--------|-------|-------------------|
-| Serial | 1 | 3.20s |
-| OpenMP | 48 | 0.82s |
-| MPI | 288 | 1.77s |
+### OpenMP Implementation
+```c
+#pragma omp parallel for reduction(+:inside_circle_count) private(seed)
+```
+- `reduction(+:inside_circle_count)`: Thread-safe accumulation
+- `private(seed)`: Per-thread RNG seed to avoid race conditions
 
-### Scripts
-- `test_openmp_scaling.sh` - Performance testing
-- `validate.py` - Check posterior against analytical
-- `plot_comparison.py` - Generate comparison plots
-- `plot_traces.py` - Convergence diagnostics
+### MCMC Method
+Points are sequentially generated in [-1,1]×[-1,1], forming an implicit Markov chain. Acceptance criterion: point inside unit circle (x²+y²≤1). π ≈ 4×(accepted/total).
 
-### Notes
+## Performance Data
 
-The MPI implementation works correctly but doesn't help here. For problems with heavier computation per chain or those requiring inter-process communication, MPI would make more sense. This is a case where understanding when not to use a tool matters.
-
-The acceptance rate can be tuned by adjusting the proposal standard deviation. Currently using 0.9 which gives ~22% acceptance.
-
----
+Representative results:
+- N=10^6, 10 threads: ~0.5s, error ~10^(-3)
+- N=10^9, 27 threads: ~15s, error ~10^(-5)
+- N=10^12, 100 threads: Minimal speedup gain vs 27 threads
 
 ## Author
 
-Krut Patel
+Krut Patel  
+UMass Dartmouth - High Performance Computing Project
 
 ## License
 
-MIT - see LICENSE file
+Academic project - contact author for usage permissions.
