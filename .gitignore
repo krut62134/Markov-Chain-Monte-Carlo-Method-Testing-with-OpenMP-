@@ -1,0 +1,5 @@
+beta_binomial_mcmc
+beta_binomial_mcmc_parallel
+beta_binomial_mcmc_mpi
+*.dat
+*.csv
